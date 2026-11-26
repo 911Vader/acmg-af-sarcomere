@@ -91,8 +91,9 @@ Any laptop from the last few years. Measured on 2026-11-26 on a MacBook Pro
 (Apple M5 Pro, 18 cores, 48 GB RAM, macOS 27.2): the main software
 environment (`.pixi/envs/default`) takes 1.2 GB of disk, or 2.8 GB with the
 optional Nextflow environment, and the raw data (`data/raw/`: the ClinVar VCF,
-gnomAD indexes and slices) takes 205 MB. The Snakemake workflow ran in 21 s
-from scratch, with a peak memory use under 150 MB; downloading takes a few
+gnomAD indexes and slices) takes 205 MB. The Snakemake workflow runs in
+about 20 s on the first run, about 1 s after that, with a peak memory use
+under 150 MB; downloading takes a few
 minutes, depending on the connection.
 
 ## Outputs
