@@ -1,0 +1,19 @@
+name: default
+channels:
+- conda-forge
+- bioconda
+- nodefaults
+dependencies:
+- python 3.13.*
+- pandas >=2
+- matplotlib >=3.9
+- pyyaml >=6.0.3,<7
+- quarto >=1.9
+- ipykernel >=7
+- nbclient >=0.10
+- nbformat >=5.10
+- bcftools >=1.21,<2
+- htslib >=1.21,<2
+- snakemake-minimal >=9,<10
+- pytest >=8
+- jupyterlab >=4

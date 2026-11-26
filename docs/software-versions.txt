@@ -1,0 +1,14 @@
+Name               Version  Build                     Size  Kind   Source
+bcftools           1.25     h118bc1c_1          954.08 KiB  conda  https://conda.anaconda.org/bioconda
+htslib             1.25     ha79157c_0            1.12 MiB  conda  https://conda.anaconda.org/bioconda
+ipykernel          7.4.0    pyh4a3486f_0        140.69 KiB  conda  https://conda.anaconda.org/conda-forge
+jupyterlab         4.6.6    pyhd8ed1ab_0         12.68 MiB  conda  https://conda.anaconda.org/conda-forge
+matplotlib         3.11.2   py313h4488465_1      14.54 KiB  conda  https://conda.anaconda.org/conda-forge
+nbclient           0.11.0   pyhcf101f3_1         29.27 KiB  conda  https://conda.anaconda.org/conda-forge
+nbformat           5.11.1   pyhcf101f3_0        105.22 KiB  conda  https://conda.anaconda.org/conda-forge
+pandas             3.1.1    np2py313h4900a6c_0   16.28 MiB  conda  https://conda.anaconda.org/conda-forge
+pytest             9.2.0    pyhc364b38_1        319.03 KiB  conda  https://conda.anaconda.org/conda-forge
+python             3.13.18  hf47f18c_100_cp313   23.18 MiB  conda  https://conda.anaconda.org/conda-forge
+pyyaml             6.0.3    py313h2af15c8_4     221.15 KiB  conda  https://conda.anaconda.org/conda-forge
+quarto             1.11.9   h23e621e_0           24.28 MiB  conda  https://conda.anaconda.org/conda-forge
+snakemake-minimal  9.27.2   pyhdfd78af_0        869.94 KiB  conda  https://conda.anaconda.org/bioconda
