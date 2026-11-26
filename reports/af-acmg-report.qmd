@@ -1,0 +1,291 @@
+---
+title: "Silent failure in variant interpretation"
+subtitle: "How missing gnomAD frequencies distort ACMG/AMP evidence in sarcomere cardiomyopathy genes"
+author: "Ghaya Alkamali"
+date: today
+format:
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true
+    code-tools: true
+execute:
+  warning: false
+bibliography: references.bib
+jupyter: python3
+---
+
+## Question
+
+Variant interpretation pipelines apply the ACMG/AMP criteria [@richards2015]
+automatically. Three criteria depend only on how common a variant is in a
+reference population such as gnomAD [@gnomad41]:
+
+- **BA1**, stand-alone benign: the variant is too common to cause the disease;
+- **BS1**, strong benign: more common than expected for the disease;
+- **PM2**, pathogenic (supporting): absent from, or extremely rare in, the population.
+
+If the population frequencies are never loaded into the pipeline (a missing
+file, a wrong INFO field name, a contig naming mismatch), the pipeline does
+not fail. Every variant simply looks absent from gnomAD (@fig-concept).
+
+```{mermaid}
+%%| label: fig-concept
+%%| fig-cap: "The failure studied here. With gnomAD frequencies (top), common variants get benign evidence. Without them (bottom), a missing value is read as absence, so every variant gets PM2 and BA1/BS1 can never apply."
+flowchart LR
+  V[ClinVar variant] --> A{gnomAD AF loaded?}
+  A -- yes --> F[FAF / grpmax AF]
+  F -->|FAF >= 0.1%| BA1[BA1: benign]
+  F -->|FAF >= 0.02%| BS1[BS1: benign]
+  F -->|AF < 0.004%| PM2a[PM2: pathogenic]
+  A -- "no (misconfigured)" --> M[AF missing]
+  M -->|read as 'absent'| PM2b[PM2 for every variant]
+```
+
+**Question.** For ClinVar variants in eight sarcomere genes that cause
+hypertrophic cardiomyopathy, a leading genetic cause of sudden cardiac death
+investigated by molecular autopsy, how much of the frequency evidence changes
+direction when gnomAD frequencies are missing? And how well does frequency
+evidence alone agree with expert ClinVar classifications when the frequencies
+*are* present?
+
+```{python}
+#| label: setup
+import sys
+
+import matplotlib
+import matplotlib.patches
+import matplotlib.ticker
+import matplotlib.pyplot as plt
+import pandas as pd
+import yaml
+
+config = yaml.safe_load(open("config/config.yaml"))
+th = config["thresholds"]
+sources = pd.read_csv("metadata/sources.tsv", sep="\t")
+regions = pd.read_csv("metadata/regions.tsv", sep="\t")
+ev = pd.read_csv("results/tables/variant_evidence.tsv", sep="\t")
+summary = pd.read_csv("results/tables/summary.tsv", sep="\t").set_index(["label", "scenario"])
+by_gene = pd.read_csv("results/tables/summary_by_gene.tsv", sep="\t")
+sweep = pd.read_csv("results/tables/bs1_sweep.tsv", sep="\t")
+
+clinvar_url = sources.loc[sources["name"] == "clinvar_vcf", "url"].item()
+clinvar_release = clinvar_url.rsplit("clinvar_", 1)[1].split(".")[0]
+pct = lambda x: f"{100 * x:.3g}%"  # thresholds are stored as fractions
+
+
+def share(n, d):
+    return f"{100 * n / d:.0f}%" if d else "n/a"
+
+
+n_benign = int(summary.loc[("benign", "with_af"), "variants"])
+n_path = int(summary.loc[("pathogenic", "with_af"), "variants"])
+b_af, b_no = summary.loc[("benign", "with_af")], summary.loc[("benign", "no_af")]
+p_af, p_no = summary.loc[("pathogenic", "with_af")], summary.loc[("pathogenic", "no_af")]
+flipped = ev[ev["label"] == "benign"]
+flipped = int(((flipped["direction_with_af"] == "benign") & (flipped["direction_no_af"] == "pathogenic")).sum())
+```
+
+## Data
+
+- **ClinVar** [@landrum2018], GRCh38 VCF release `{python} clinvar_release`
+  (a dated archive file, never the weekly "latest"). We keep variants
+  annotated to exactly one panel gene, with review status of at least
+  `{python} config["min_stars"]` stars and a benign or pathogenic
+  classification. These are the reference labels.
+- **gnomAD v4.1**, joint exome + genome frequencies [@gnomad41], cut to each
+  gene's region. We use the group-max filtering allele frequency
+  (`{python} config["gnomad_fields"]["faf"]`) for BA1 and BS1, as ClinGen
+  recommends, and the group-max allele frequency
+  (`{python} config["gnomad_fields"]["af_grpmax"]`) for PM2. Only records that
+  pass gnomAD's filters are used.
+
+```{python}
+#| label: tbl-genes
+#| tbl-cap: "The eight genes, the region cut from gnomAD (GRCh38), and the ClinVar variants kept as reference labels."
+counts = ev.groupby(["gene", "label"]).size().unstack(fill_value=0)
+genes = regions.set_index("gene")[["chrom", "start", "end"]].join(counts).fillna(0)
+genes.columns = ["chromosome", "start", "end", *[f"{c} (ClinVar)" for c in counts.columns]]
+genes.astype({c: int for c in genes.columns if c != "chromosome"})
+```
+
+In total `{python} f"{n_benign + n_path:,}"` variants: `{python} f"{n_benign:,}"`
+benign or likely benign and `{python} f"{n_path:,}"` pathogenic or likely pathogenic.
+
+## Rules
+
+We use the thresholds of the ClinGen Cardiomyopathy Expert Panel's MYH7
+specification [@kelly2018] for all eight genes:
+
+| Criterion | Rule | Threshold |
+|---|---|---|
+| BA1 | group-max FAF ≥ threshold | `{python} pct(th["BA1"])` |
+| BS1 | group-max FAF ≥ threshold (and BA1 not met) | `{python} pct(th["BS1"])` |
+| PM2 | absent from gnomAD, or group-max AF < threshold | `{python} pct(th["PM2"])` |
+
+The rules are in `scripts/acmg_af.py` and are covered by unit tests
+(`tests/`). We apply them twice: **with gnomAD** frequencies, and with **no
+frequencies**, which reproduces the misconfiguration.
+
+## Results
+
+### Without frequencies, all of the evidence points the wrong way
+
+```{python}
+#| label: fig-direction
+#| fig-cap: "Direction of the frequency evidence for each ClinVar label, with and without gnomAD frequencies. Blue: benign evidence (BA1 or BS1). Orange: pathogenic evidence (PM2). Grey: neither. Numbers in the bars are variant counts."
+#| fig-alt: "Four horizontal stacked bars, two per ClinVar label (benign and pathogenic), one bar with gnomAD frequencies and one without. Without frequencies both bars are entirely orange: every variant receives PM2. With frequencies, the benign-label bar is largely blue (BA1 or BS1), and the pathogenic-label bar stays almost entirely orange. The exact counts are in the table that follows."
+BLUE, ORANGE, GREY = "#2a78d6", "#eb6834", "#b8b7b2"
+parts = [("benign_direction", "benign (BA1/BS1)", BLUE),
+         ("pathogenic_direction", "pathogenic (PM2)", ORANGE),
+         ("no_frequency_evidence", "none", GREY)]
+bars = [("benign", "with_af", "ClinVar benign — with gnomAD"),
+        ("benign", "no_af", "ClinVar benign — no frequencies"),
+        ("pathogenic", "with_af", "ClinVar pathogenic — with gnomAD"),
+        ("pathogenic", "no_af", "ClinVar pathogenic — no frequencies")]
+fig, ax = plt.subplots(figsize=(7.5, 3.4))
+for y, (label, scen, name) in enumerate(reversed(bars)):
+    row, left = summary.loc[(label, scen)], 0
+    total = row["variants"]
+    for col, legend, color in parts:
+        width = row[col] / total
+        if width:
+            ax.barh(y, width, left=left, height=0.62, color=color, edgecolor="white", linewidth=2)
+            if width > 0.06:
+                ax.text(left + width / 2, y, f"{row[col]:,}", ha="center", va="center", fontsize=8,
+                        color="white" if color != GREY else "#0b0b0b")
+        left += width
+ax.set_yticks(range(len(bars)), [b[2] for b in reversed(bars)], fontsize=8)
+ax.set_xlim(0, 1)
+ax.xaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1))
+ax.set_xlabel("Share of variants")
+for side in ("top", "right", "left"):
+    ax.spines[side].set_visible(False)
+ax.tick_params(axis="y", length=0)
+handles = [matplotlib.patches.Patch(color=color, label=legend) for _, legend, color in parts]
+ax.legend(handles=handles, ncol=3, frameon=False, fontsize=8, loc="upper center",
+          bbox_to_anchor=(0.4, -0.22), title="Frequency evidence", title_fontsize=8)
+fig.tight_layout()
+plt.show()
+```
+
+Without frequencies, all `{python} f"{n_benign:,}"` benign variants
+(`{python} share(b_no["PM2"], n_benign)`) receive PM2, which is evidence *for*
+pathogenicity, and none can receive BA1 or BS1. With gnomAD,
+`{python} f"{int(b_af['benign_direction']):,}"` of them
+(`{python} share(b_af["benign_direction"], n_benign)`) receive benign
+frequency evidence instead (BA1: `{python} f"{int(b_af['BA1']):,}"`, BS1:
+`{python} f"{int(b_af['BS1']):,}"`). For **`{python} f"{flipped:,}"` benign variants
+the frequency evidence reverses direction**, from pathogenic to benign, only
+because the frequencies were loaded.
+
+For pathogenic variants, the missing frequencies change little: with gnomAD,
+`{python} share(p_af["PM2"], n_path)` still meet PM2, and
+`{python} f"{int(p_af['benign_direction']):,}"` receive benign frequency
+evidence. So the misconfiguration does not hide pathogenic variants. It adds
+false pathogenic evidence to benign ones, the error that would turn a
+harmless variant into a reportable finding in a molecular autopsy.
+
+```{python}
+#| label: tbl-summary
+#| tbl-cap: "Counts behind the figure: variants meeting each criterion, per ClinVar label and scenario. `in_gnomad`: variants with a passing gnomAD record."
+summary.reset_index()
+```
+
+### Per gene
+
+```{python}
+#| label: tbl-genes-result
+#| tbl-cap: "Frequency evidence per gene with gnomAD frequencies."
+by_gene.drop(columns="scenario")
+```
+
+### Is the result sensitive to the BS1 threshold?
+
+The MYH7 thresholds are gene-specific choices. @fig-sweep moves the BS1
+threshold over two orders of magnitude.
+
+```{python}
+#| label: fig-sweep
+#| fig-cap: "Share of variants whose group-max FAF reaches each BS1 threshold (log scale), for ClinVar benign (blue) and pathogenic (orange) variants. Dashed lines: the BS1 and BA1 thresholds used in this report."
+#| fig-alt: "Line chart with a logarithmic x axis of BS1 threshold from 0.001% to 1%, and y axis the share of variants meeting it. The benign line starts high and falls as the threshold rises; the pathogenic line stays near zero across the range. Two dashed vertical lines mark the BS1 (0.02%) and BA1 (0.1%) thresholds. Exact values are in the results/tables/bs1_sweep.tsv file."
+fig, ax = plt.subplots(figsize=(6.5, 3.6))
+for label, color in [("benign", BLUE), ("pathogenic", ORANGE)]:
+    part = sweep[sweep["label"] == label]
+    ax.plot(part["threshold"] * 100, part["fraction"], color=color, linewidth=2, marker="o",
+            markersize=5, label=f"ClinVar {label}")
+for name in ("BS1", "BA1"):
+    ax.axvline(th[name] * 100, color="#52514e", linestyle="--", linewidth=1)
+    ax.annotate(f"{name} ({pct(th[name])})", (th[name] * 100, 1.0), xytext=(4, 0),
+                textcoords="offset points", ha="left", va="center", fontsize=8, color="#52514e")
+ax.set_xscale("log")
+ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{x:g}%"))
+ax.set_xlabel("BS1 threshold (group-max FAF, %)")
+ax.set_ylabel("Share of variants meeting it")
+ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1))
+ax.set_ylim(0, 1.08)
+ax.grid(alpha=0.3)
+for side in ("top", "right"):
+    ax.spines[side].set_visible(False)
+ax.legend(frameon=False, fontsize=8, loc="lower left", bbox_to_anchor=(0.0, 0.06))
+fig.tight_layout()
+plt.show()
+```
+
+```{python}
+at_bs1 = sweep[sweep["threshold"] == th["BS1"]].set_index("label")["fraction"]
+```
+
+At the chosen BS1 threshold, `{python} f"{100 * at_bs1.get('benign', float('nan')):.0f}"`%
+of benign and `{python} f"{100 * at_bs1.get('pathogenic', float('nan')):.1f}"`%
+of pathogenic variants reach it. The main result does not depend on the exact
+threshold: without frequencies the benign line would be at zero everywhere.
+
+### Expert-panel variants only
+
+ClinVar expert panels (3 stars and more) may themselves have used gnomAD
+frequencies to classify a variant, which makes agreement with frequency
+evidence partly circular. @tbl-stars separates them.
+
+```{python}
+#| label: tbl-stars
+#| tbl-cap: "Benign frequency evidence (BA1 or BS1, with gnomAD) by ClinVar review status."
+ev["review"] = ev["stars"].map(lambda s: "expert panel or guideline (3-4 stars)" if s >= 3 else "multiple submitters (2 stars)")
+ev["benign_evidence"] = ev["direction_with_af"] == "benign"
+stars_tbl = ev.groupby(["review", "label"])["benign_evidence"].agg(variants="size", benign_evidence="sum")
+stars_tbl["share"] = (100 * stars_tbl["benign_evidence"] / stars_tbl["variants"]).round(1)
+stars_tbl
+```
+
+## Limitations
+
+- Only the three frequency criteria are applied. This is not a full ACMG/AMP
+  classification, and ClinVar's labels use many other kinds of evidence.
+- Variants are matched to gnomAD by exact position and alleles, without
+  re-normalising indels; a differently represented indel counts as absent.
+- "Absent from gnomAD" is not checked against coverage: a site gnomAD could
+  not call would also receive PM2.
+- The MYH7 thresholds are applied to all eight genes. The Cardiomyopathy
+  Expert Panel later published specifications for the other sarcomere genes;
+  check its current criteria specifications before using these numbers
+  clinically. The thresholds are in `config/config.yaml`.
+
+All decisions are logged in `docs/decisions.md`.
+
+## Software
+
+```{python}
+#| label: versions
+import subprocess
+
+bcftools = subprocess.run(["bcftools", "--version"], capture_output=True, text=True).stdout.splitlines()[0]
+print(f"Python {sys.version.split()[0]}, pandas {pd.__version__}, matplotlib {matplotlib.__version__}, {bcftools}")
+```
+
+The exact versions of every package are in `pixi.lock`; the direct
+dependencies are listed in `docs/software-versions.txt`.
+
+## References
+
+::: {#refs}
+:::
