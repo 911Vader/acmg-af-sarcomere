@@ -1,0 +1,81 @@
+# Frequency evidence (ACMG/AMP BA1, BS1, PM2) for ClinVar variants in eight
+# sarcomere genes, with and without gnomAD allele frequencies.
+#
+# Run from the project folder:  pixi run run-snakemake
+# (the raw data must be present first: pixi run download)
+# All settings are in config/config.yaml.
+
+
+configfile: "config/config.yaml"
+
+
+SCRIPTS = "scripts/acmg_af.py"  # shared by the steps below: a change reruns them
+
+# The scripts read config/config.yaml themselves. Each rule also lists the
+# settings it uses as `params`, so Snakemake reruns exactly the steps whose
+# settings changed (check with `pixi run snakemake -n` after an edit).
+
+
+rule all:
+    default_target: True
+    input:
+        "results/tables/variant_evidence.tsv",
+        "results/tables/summary.tsv",
+        "results/tables/summary_by_gene.tsv",
+        "results/tables/bs1_sweep.tsv",
+
+
+rule select_clinvar:
+    input:
+        vcf=config["clinvar_vcf"],
+        tbi=config["clinvar_vcf"] + ".tbi",
+        regions=config["regions"],
+        script="scripts/select_clinvar.py",
+        lib=SCRIPTS,
+    params:
+        genes=config["genes"],
+        min_stars=config["min_stars"],
+        benign=config["benign_labels"],
+        pathogenic=config["pathogenic_labels"],
+    output:
+        "data/processed/clinvar_panel.tsv",
+    log:
+        "results/logs/select_clinvar.log",
+    shell:
+        "python {input.script} config/config.yaml {output} > {log} 2>&1"
+
+
+rule gnomad_table:
+    input:
+        slices=expand("{dir}/{gene}.vcf", dir=config["gnomad_dir"], gene=config["genes"]),
+        script="scripts/gnomad_table.py",
+    params:
+        genes=config["genes"],
+        fields=config["gnomad_fields"],
+    output:
+        "data/processed/gnomad_panel.tsv",
+    log:
+        "results/logs/gnomad_table.log",
+    shell:
+        "python {input.script} config/config.yaml {output} > {log} 2>&1"
+
+
+rule classify:
+    input:
+        clinvar="data/processed/clinvar_panel.tsv",
+        gnomad="data/processed/gnomad_panel.tsv",
+        script="scripts/classify_frequency.py",
+        lib=SCRIPTS,
+    params:
+        thresholds=config["thresholds"],
+        sweep=config["bs1_sweep"],
+        pass_only=config["gnomad_pass_only"],
+    output:
+        "results/tables/variant_evidence.tsv",
+        "results/tables/summary.tsv",
+        "results/tables/summary_by_gene.tsv",
+        "results/tables/bs1_sweep.tsv",
+    log:
+        "results/logs/classify.log",
+    shell:
+        "python {input.script} config/config.yaml {input.clinvar} {input.gnomad} results/tables > {log} 2>&1"
