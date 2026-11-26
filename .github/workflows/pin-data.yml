@@ -1,0 +1,41 @@
+# ONE-TIME, by the author: run `pixi run pin-data` on GitHub's machine and
+# keep the metadata files it writes as a downloadable artifact. Use it if your
+# own computer cannot reach NCBI or Google Cloud Storage. Then download the
+# artifact, copy the three files into metadata/, and commit them.
+# (Actions tab -> Pin data -> Run workflow.)
+name: Pin data
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "ClinVar release date YYYYMMDD (empty: latest archived)"
+        required: false
+        default: ""
+
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: prefix-dev/setup-pixi@v0.11.2
+        with:
+          pixi-version: v0.83.0
+          locked: true
+
+      - name: Choose the data and record sources, regions and checksums
+        env:
+          RELEASE: ${{ inputs.release }}
+        run: |
+          if [ -n "$RELEASE" ]; then pixi run pin-data --release "$RELEASE"; else pixi run pin-data; fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: metadata
+          path: |
+            metadata/sources.tsv
+            metadata/regions.tsv
+            metadata/checksums.sha256
+          retention-days: 7
