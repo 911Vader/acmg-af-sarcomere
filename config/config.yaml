@@ -1,0 +1,42 @@
+# Settings for the analysis. Change a setting here, never inside the code.
+# Every choice below is explained in docs/decisions.md.
+
+# --- Inputs (written by `pixi run pin-data`, downloaded by `pixi run download`)
+clinvar_vcf: data/raw/clinvar/clinvar.vcf.gz
+regions: metadata/regions.tsv           # one row per gene: chrom, start, end
+gnomad_dir: data/raw/gnomad             # one slice per gene: <GENE>.vcf
+
+# --- Genes: the eight sarcomere genes with definitive evidence for
+# hypertrophic cardiomyopathy (ClinGen gene curation), a core part of
+# molecular autopsy panels for sudden cardiac death.
+genes: [MYH7, MYBPC3, TNNT2, TNNI3, TPM1, ACTC1, MYL2, MYL3]
+
+# --- Which ClinVar records count as a reference label
+# Minimum ClinVar review status, in gold stars (2 = multiple submitters with
+# no conflicts; 3 = expert panel; 4 = practice guideline).
+min_stars: 2
+# ClinVar CLNSIG values grouped into the two labels we compare.
+benign_labels: [Benign, Likely_benign, Benign/Likely_benign]
+pathogenic_labels: [Pathogenic, Likely_pathogenic, Pathogenic/Likely_pathogenic]
+
+# --- gnomAD v4.1 joint (exomes + genomes) INFO fields
+gnomad_fields:
+  faf: fafmax_faf95_max_joint   # grpmax filtering allele frequency (95% CI) -> BA1, BS1
+  af_grpmax: AF_grpmax_joint     # highest genetic-ancestry-group AF        -> PM2
+  af: AF_joint                   # overall AF (fallback for PM2 when grpmax is missing)
+# Also kept in the slices, for reading the data (not used by the rules).
+gnomad_extra_fields: [AC_joint, AN_joint]
+# Use only gnomAD records that pass gnomAD's quality filters.
+gnomad_pass_only: true
+
+# --- Frequency rules (ClinGen Cardiomyopathy Expert Panel, MYH7 specification,
+# Kelly et al. 2018, Genet Med 20:351, doi:10.1038/gim.2017.218).
+# Values are fractions, not percent: 0.001 = 0.1 %.
+thresholds:
+  BA1: 0.001     # stand-alone benign: FAF >= 0.1 %
+  BS1: 0.0002    # strong benign:      FAF >= 0.02 %
+  PM2: 0.00004   # pathogenic, supporting: absent, or grpmax AF < 0.004 %
+
+# --- Sensitivity analysis: the BS1 threshold is swept over these values
+# (log-spaced, fractions) to see how robust the main result is.
+bs1_sweep: [0.00001, 0.00002, 0.00005, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01]
