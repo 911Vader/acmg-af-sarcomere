@@ -1,0 +1,54 @@
+# Software environment of this project. Edit it with `pixi add <package>`;
+# Pixi records the exact versions it installed in pixi.lock (commit both).
+[workspace]
+name = "acmg-af-sarcomere"
+description = "Silent failure in variant interpretation: how missing gnomAD frequencies distort ACMG/AMP evidence in sarcomere cardiomyopathy genes"
+authors = ["Ghaya Alkamali"]
+channels = ["conda-forge", "bioconda"]
+# bcftools and htslib have no Windows builds: use WSL2 on Windows.
+platforms = ["linux-64", "osx-arm64", "osx-64"]
+version = "0.1.0"
+
+[dependencies]
+python = "3.13.*"
+pandas = ">=2"
+matplotlib = ">=3.9"
+pyyaml = ">=6.0.3,<7"
+quarto = ">=1.9"
+ipykernel = ">=7"
+nbclient = ">=0.10"
+nbformat = ">=5.10"
+bcftools = ">=1.21,<2"
+htslib = ">=1.21,<2"
+snakemake-minimal = ">=9,<10"
+pytest = ">=8"
+jupyterlab = ">=4"
+
+[tasks]
+check = { cmd = "python --version && bcftools --version | head -n 1 && snakemake --version && quarto --version", description = "Check that the tools work" }
+pin-data = { cmd = "python scripts/pin_data.py", description = "ONE-TIME, by the author: choose the ClinVar release, record sources, gene regions and checksums in metadata/" }
+download = { cmd = "python scripts/download_data.py", description = "Download the raw data (ClinVar release + gnomAD slices) and verify checksums" }
+test = { cmd = "pytest -q tests", description = "Unit tests of the frequency rules (no data needed)" }
+run-snakemake = { cmd = "snakemake --cores 2", depends-on = ["download"], description = "Run the analysis workflow" }
+report = { cmd = "quarto render reports/af-acmg-report.qmd", depends-on = ["run-snakemake"], description = "Render the Quarto report" }
+software-versions = { cmd = "pixi list --explicit > docs/software-versions.txt", description = "Record the versions of the direct dependencies" }
+rulegraph = { cmd = "snakemake --rulegraph > docs/rulegraph.dot", description = "Write the workflow graph (Graphviz DOT) to docs/" }
+# One command rebuilds every result from the raw data.
+reproduce = [{ task = "test" }, { task = "report" }]
+# Lesson 06: run the exploration notebook top to bottom without you (it needs
+# the workflow's tables), then keep the committed copy free of outputs.
+explore = { cmd = "jupyter nbconvert --execute --to html --output-dir results/notebooks notebooks/01-explore-data.ipynb", depends-on = ["run-snakemake"], description = "Run the exploration notebook headless (HTML in results/notebooks/)" }
+clear-notebooks = { cmd = "jupyter nbconvert --clear-output --inplace notebooks/*.ipynb", description = "Clear notebook outputs before committing" }
+
+# Lesson 10 (optional): the `classify` step ported to Nextflow, in its own
+# environment so the main environment stays small. Run after the Snakemake
+# workflow; the comparison must report identical tables.
+[feature.nextflow.dependencies]
+nextflow = ">=25"
+
+[feature.nextflow.tasks]
+nextflow-classify = { cmd = "nextflow run workflow/main.nf -params-file config/config.yaml", description = "Run the classify step with Nextflow (needs pixi run run-snakemake first)" }
+compare-nextflow = { cmd = "python scripts/compare_tables.py results/tables results/nextflow/tables", depends-on = ["nextflow-classify"], description = "Check that Snakemake and Nextflow give identical tables" }
+
+[environments]
+nextflow = ["nextflow"]
