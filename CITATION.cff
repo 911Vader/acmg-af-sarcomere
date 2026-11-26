@@ -1,0 +1,45 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+title: "Silent failure in variant interpretation: how missing gnomAD frequencies distort ACMG/AMP evidence in sarcomere cardiomyopathy genes"
+abstract: "Measures how missing gnomAD allele frequencies change the ACMG/AMP frequency criteria (BA1, BS1, PM2) for ClinVar variants in eight sarcomere genes, with a sensitivity analysis of the BS1 threshold."
+type: software
+authors:
+  - given-names: "Ghaya"
+    family-names: "Alkamali"
+    affiliation: "Mohamed bin Zayed University of Artificial Intelligence"
+repository-code: "https://github.com/911Vader/acmg-af-sarcomere"
+license: MIT
+version: 0.1.0
+date-released: "2026-12-01"
+keywords:
+  - reproducibility
+  - variant interpretation
+  - ACMG/AMP
+  - gnomAD
+  - ClinVar
+  - cardiomyopathy
+references:
+  - type: article
+    title: "Adaptation and validation of the ACMG/AMP variant classification framework for MYH7-associated inherited cardiomyopathies: recommendations by ClinGen's Inherited Cardiomyopathy Expert Panel"
+    authors:
+      - family-names: "Kelly"
+        given-names: "Melissa A."
+      - name: "et al."
+    journal: "Genetics in Medicine"
+    volume: 20
+    start: 351
+    end: 359
+    year: 2018
+    doi: "10.1038/gim.2017.218"
+  - type: article
+    title: "Standards and guidelines for the interpretation of sequence variants"
+    authors:
+      - family-names: "Richards"
+        given-names: "Sue"
+      - name: "et al."
+    journal: "Genetics in Medicine"
+    volume: 17
+    start: 405
+    end: 424
+    year: 2015
+    doi: "10.1038/gim.2015.30"
