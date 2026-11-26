@@ -1,0 +1,17 @@
+a0984d79c24a6735c6c709142e81672d41c673e3011cafb3ce16d8d5390d6d68  data/raw/clinvar/clinvar.vcf.gz
+185099df3c683e20d55f8817238f72ffb4ec2737875759412357619b969b1648  data/raw/clinvar/clinvar.vcf.gz.tbi
+c714b095f658b081b54424a84579aefa79f8563521e2ef6dde5c6c468bea4d77  data/raw/gnomad/index/gnomad.joint.v4.1.sites.chr14.vcf.bgz.tbi
+ae3c6bdcbbe2f5de72e9f4167907802a36854c49c227d8b11ca0840beab70bb9  data/raw/gnomad/index/gnomad.joint.v4.1.sites.chr11.vcf.bgz.tbi
+47abee9290f161b9b7d38153e0ca977e34bb1ab8b5b0efac58820318de024f7d  data/raw/gnomad/index/gnomad.joint.v4.1.sites.chr1.vcf.bgz.tbi
+e2faa47269d027bba09ff06162fde71b0f35fb52001206664f30e3099ebc300a  data/raw/gnomad/index/gnomad.joint.v4.1.sites.chr19.vcf.bgz.tbi
+3863029e62e6fc36cf755458941392cec37702b3f5275aebfa344de2760349c5  data/raw/gnomad/index/gnomad.joint.v4.1.sites.chr15.vcf.bgz.tbi
+9a2e0f3e5d63b25217c5a9b2b65bfa6328834c9d485a37a41c8c03638e518a4f  data/raw/gnomad/index/gnomad.joint.v4.1.sites.chr12.vcf.bgz.tbi
+e2561b6ffd4c87ea49c3340136c8cc63da3eec4ca6443a5ff0004d81d518d10a  data/raw/gnomad/index/gnomad.joint.v4.1.sites.chr3.vcf.bgz.tbi
+b8fde34c8a2dbd4dfba5afd4316f968f6914933e274fb46dde5d93a1a37b4636  data/raw/gnomad/MYH7.vcf
+cc87b4af99f50f909a2cc5737549b41617c57451fa4064b334c47f0077ca6d05  data/raw/gnomad/MYBPC3.vcf
+4519701cc9a724e9f23c054df28d51312d0eb9846412027a62a0fd28bd38682b  data/raw/gnomad/TNNT2.vcf
+984b13ec4b9a08cec10867ed7a24f5693e51b48850fac786764ae3d8b718bcc3  data/raw/gnomad/TNNI3.vcf
+0f8d7f38a7660a843d01a1ca6822847d4f25352d399712f6bb3be76894db01f0  data/raw/gnomad/TPM1.vcf
+e6ba55a4b7d5d75f7c0120db5431c47bf603e43ca9c057ec5fa055ebd89dc9a3  data/raw/gnomad/ACTC1.vcf
+655eb1c44f10649837f69700530bbcf7cce6d6d5ddbf25759614606e02a302d9  data/raw/gnomad/MYL2.vcf
+0beb4556b563638083c076a3c8a4fe80bee73cebf648f7cdfa816a100e06f62f  data/raw/gnomad/MYL3.vcf
